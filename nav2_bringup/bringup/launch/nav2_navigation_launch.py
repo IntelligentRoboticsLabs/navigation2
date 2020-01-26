@@ -38,7 +38,11 @@ def generate_launch_description():
     use_remappings = LaunchConfiguration('use_remappings')
     map_subscribe_transient_local = LaunchConfiguration('map_subscribe_transient_local')
 
-    # TODO(orduno) Remove once `PushNodeRemapping` is resolved
+    # Map fully qualified names to relative ones so the node's namespace can be prepended.
+    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
+    # https://github.com/ros/geometry2/issues/32
+    # https://github.com/ros/robot_state_publisher/pull/30
+    # TODO(orduno) Substitute with `PushNodeRemapping`
     #              https://github.com/ros2/launch_ros/issues/56
     remappings = [((namespace, '/tf'), '/tf'),
                   ((namespace, '/tf_static'), '/tf_static'),
@@ -134,6 +138,15 @@ def generate_launch_description():
             remappings=remappings),
 
         Node(
+            package='nav2_waypoint_follower',
+            node_executable='waypoint_follower',
+            node_name='waypoint_follower',
+            output='screen',
+            parameters=[configured_params],
+            use_remappings=IfCondition(use_remappings),
+            remappings=remappings),
+
+        Node(
             condition=IfCondition(use_lifecycle_mgr),
             package='nav2_lifecycle_manager',
             node_executable='lifecycle_manager',
@@ -144,6 +157,7 @@ def generate_launch_description():
                         {'node_names': ['controller_server',
                                         'planner_server',
                                         'recoveries_server',
-                                        'bt_navigator']}]),
+                                        'bt_navigator',
+                                        'waypoint_follower']}]),
 
     ])

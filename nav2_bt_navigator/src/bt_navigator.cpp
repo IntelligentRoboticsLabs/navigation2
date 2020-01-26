@@ -56,7 +56,7 @@ BtNavigator::on_configure(const rclcpp_lifecycle::State & /*state*/)
   client_node_ = std::make_shared<rclcpp::Node>("_", options);
 
   self_client_ = rclcpp_action::create_client<nav2_msgs::action::NavigateToPose>(
-    client_node_, "NavigateToPose");
+    client_node_, "navigate_to_pose");
 
   tf_ = std::make_shared<tf2_ros::Buffer>(get_clock());
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
@@ -149,18 +149,28 @@ BtNavigator::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
 {
   RCLCPP_INFO(get_logger(), "Cleaning up");
 
+  // TODO(orduno) Fix the race condition between the worker thread ticking the tree
+  //              and the main thread resetting the resources, see #1344
+
   goal_sub_.reset();
   client_node_.reset();
   self_client_.reset();
-  tf_.reset();
+
+  // Reset the listener before the buffer
   tf_listener_.reset();
+  tf_.reset();
+
   action_server_.reset();
   plugin_lib_names_.clear();
   xml_string_.clear();
+
+  RCLCPP_INFO(get_logger(), "Cleaning tree");
+
   tree_.reset();
   blackboard_.reset();
   bt_.reset();
 
+  RCLCPP_INFO(get_logger(), "Completed Cleaning up");
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
@@ -216,12 +226,12 @@ BtNavigator::navigateToPose()
 
     case nav2_behavior_tree::BtStatus::FAILED:
       RCLCPP_ERROR(get_logger(), "Navigation failed");
-      action_server_->terminate_goals();
+      action_server_->terminate_current();
       break;
 
     case nav2_behavior_tree::BtStatus::CANCELED:
       RCLCPP_INFO(get_logger(), "Navigation canceled");
-      action_server_->terminate_goals();
+      action_server_->terminate_all();
       // Reset the BT so that it can be run again in the future
       bt_->resetTree(tree_->root_node);
       break;
