@@ -58,7 +58,7 @@ public:
 
   BT::NodeStatus tick() override
   {     
-    RCLCPP_WARN(node_->get_logger(), "Battery low, please recharged me!!");
+    RCLCPP_WARN(node_->get_logger(), "Battery low, please recharged me!!!");
     return BT::NodeStatus::SUCCESS;
   }
 
